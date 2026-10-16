@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스탑워치</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --text:#f1f5f9; --muted:#94a3b8; --green:#22c55e; --red:#ef4444; --gray:#475569; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:var(--bg); color:var(--text); font-family:-apple-system,"Apple SD Gothic Neo",sans-serif; }
+  .card { background:var(--card); border-radius:24px; padding:32px; width:min(420px,92vw); box-shadow:0 20px 50px rgba(0,0,0,.4); }
+  #display { font-size:clamp(44px,12vw,64px); font-variant-numeric:tabular-nums; text-align:center; letter-spacing:1px; margin:8px 0 28px; }
+  .btns { display:flex; gap:12px; }
+  button { flex:1; padding:14px; border:0; border-radius:14px; font-size:18px; font-weight:600; color:#fff; cursor:pointer; transition:transform .1s, opacity .2s; }
+  button:active { transform:scale(.96); }
+  button:disabled { opacity:.4; cursor:default; }
+  #startBtn { background:var(--green); } #startBtn.running { background:var(--red); }
+  #lapBtn, #resetBtn { background:var(--gray); }
+  ul { list-style:none; padding:0; margin:24px 0 0; max-height:220px; overflow-y:auto; }
+  li { display:flex; justify-content:space-between; padding:10px 4px; border-bottom:1px solid #334155; font-variant-numeric:tabular-nums; color:var(--muted); }
+  li span:last-child { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="display">00:00.00</div>
+  <div class="btns">
+    <button id="lapBtn" disabled>랩</button>
+    <button id="startBtn">시작</button>
+    <button id="resetBtn" disabled>리셋</button>
+  </div>
+  <ul id="laps"></ul>
+</div>
+<script>
+  const display = document.getElementById('display');
+  const startBtn = document.getElementById('startBtn');
+  const lapBtn = document.getElementById('lapBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const lapsEl = document.getElementById('laps');
+
+  let elapsed = 0, startTime = 0, timer = null, lastLap = 0, lapCount = 0;
+
+  const fmt = ms => {
+    const m = String(Math.floor(ms / 60000)).padStart(2, '0');
+    const s = String(Math.floor(ms / 1000) % 60).padStart(2, '0');
+    const c = String(Math.floor(ms / 10) % 100).padStart(2, '0');
+    return `${m}:${s}.${c}`;
+  };
+  const current = () => elapsed + (timer ? performance.now() - startTime : 0);
+  const render = () => { display.textContent = fmt(current()); };
+
+  function toggle() {
+    if (timer) {
+      elapsed += performance.now() - startTime;
+      clearInterval(timer); timer = null;
+      startBtn.textContent = '시작'; startBtn.classList.remove('running');
+      lapBtn.disabled = true;
+    } else {
+      startTime = performance.now();
+      timer = setInterval(render, 10);
+      startBtn.textContent = '정지'; startBtn.classList.add('running');
+      lapBtn.disabled = false; resetBtn.disabled = false;
+    }
+    render();
+  }
+  function lap() {
+    const now = current();
+    const li = document.createElement('li');
+    li.innerHTML = `<span>랩 ${++lapCount} (+${fmt(now - lastLap)})</span><span>${fmt(now)}</span>`;
+    lapsEl.prepend(li);
+    lastLap = now;
+  }
+  function reset() {
+    clearInterval(timer); timer = null;
+    elapsed = 0; lastLap = 0; lapCount = 0; lapsEl.innerHTML = '';
+    startBtn.textContent = '시작'; startBtn.classList.remove('running');
+    lapBtn.disabled = true; resetBtn.disabled = true;
+    render();
+  }
+
+  startBtn.onclick = toggle; lapBtn.onclick = lap; resetBtn.onclick = reset;
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'l' && !lapBtn.disabled) lap();
+    else if (e.key === 'r') reset();
+  });
+</script>
+</body>
+</html>
